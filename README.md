@@ -1,7 +1,7 @@
 
 # CartPilot
  
-AI checkout concierge for Razorpay merchants — built for the Razorpay AI Buildathon 2026, Track 1 (AI Growth & Agentic Commerce).
+AI checkout concierge for Razorpay merchants 
  
 Live demo: https://cartpilot-64yn.onrender.com
 Merchant dashboard: https://cartpilot-64yn.onrender.com/dashboard.html (login: admin / cartpilot123)
