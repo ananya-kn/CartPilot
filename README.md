@@ -1,102 +1,48 @@
-# CartPilot — AI Checkout Concierge for Razorpay Merchants
 
-**Razorpay AI Buildathon 2026 — Track 1: AI Growth & Agentic Commerce**
-
-CartPilot is a conversational AI agent embedded in a merchant's checkout flow.
-It recommends relevant upsells, negotiates a **bounded, merchant-capped**
-discount when a customer hesitates, and completes payment end-to-end on
-**Razorpay test-mode APIs** — with every money-relevant decision written to
-an explainable, timestamped audit trail before it's allowed to take effect.
-
-## Problem it solves
-
-Merchants lose revenue in two silent ways: missed upsell opportunities, and
-customers who abandon checkout instead of asking for a small nudge to
-convert. A human sales rep would catch both — CartPilot puts that same
-behavior in front of every customer, while keeping every action explainable,
-bounded, and gated so a merchant can trust an AI to touch their checkout.
-
-## The three guardrails (the Buildathon's stated bar)
-
-| Requirement | How CartPilot meets it |
-|---|---|
-| **Explainable** | Every agent decision (`lib/agent.js`) returns a structured object with a human-readable `reason` — never a bare number. |
-| **Bounded** | Discounts are capped by `MAX_DISCOUNT_PERCENT` (merchant-configured env var). The cap is enforced **server-side** in `checkout.js` via `clampDiscountPercent()` — a tampered client request claiming a bigger discount is silently clamped back down, not trusted. |
-| **Gated** | The agent (`/api/chat`) only ever *proposes* an action. The only code path that can actually create a Razorpay order is `/api/checkout`, and every proposal + every order is written to the audit trail (`lib/auditStore.js`) first. |
-
-## Failure handling (graceful, not silent)
-
-`pages/api/webhook.js` listens for Razorpay's `payment.failed` event and:
-1. Logs the failure with a reason.
-2. Proposes a retry to the customer — up to `MAX_AUTO_RETRY_ATTEMPTS` (default 2), so it never retries indefinitely.
-3. After the cap is hit, logs `PAYMENT_ABANDONED` and stops, instead of quietly dropping the customer.
-
-## Architecture
-
+# CartPilot
+ 
+AI checkout concierge for Razorpay merchants — built for the Razorpay AI Buildathon 2026, Track 1 (AI Growth & Agentic Commerce).
+ 
+Live demo: https://cartpilot-64yn.onrender.com
+Merchant dashboard: https://cartpilot-64yn.onrender.com/dashboard.html (login: admin / cartpilot123)
+ 
+Note: hosted on Render's free tier, so the first request after a period of inactivity can take 30-50 seconds to respond.
+ 
+## What it does
+ 
+CartPilot is a chat-based agent that sits inside a merchant's checkout flow. As a customer shops, it suggests relevant add-ons based on what's already in the cart, and can evaluate discount requests — but only within limits the merchant has set. It never grants more than it's allowed to, no matter how the request is phrased. Every suggestion, discount, and payment attempt gets written to an audit trail the merchant can see in real time, along with the reason behind it.
+ 
+The goal was to make an agent that's actually useful without handing it unchecked control over pricing or discounts.
+ 
+## How it's built
+ 
+The agent logic is rule-based rather than a free-form LLM call. Given that money is involved, I wanted every decision to be traceable back to a specific rule, not something generated on the fly. Discounts are capped server-side (currently 15% or ₹300, whichever is lower), and those limits aren't something the agent can talk its way around.
+ 
 ```
-Customer (browser)
-   │
-   ├── chats with the agent ───► POST /api/chat ───► lib/agent.js (decideAction)
-   │                                    │                    │
-   │                                    └──────────► lib/auditStore.js (log proposal)
-   │
-   ├── accepts upsell / discount (client-side cart update)
-   │
-   └── clicks "Pay" ───► POST /api/checkout
-                              │
-                              ├── clampDiscountPercent() [re-validates against cap]
-                              ├── razorpay.orders.create() [test mode]
-                              └── lib/auditStore.js (log order + reasoning)
-                                       │
-                          Razorpay Checkout.js widget opens
-                                       │
-                              payment succeeds / fails
-                                       │
-                          Razorpay → POST /api/webhook
-                                       │
-                              log PAYMENT_SUCCEEDED
-                              or RETRY_PROPOSED → ... → PAYMENT_ABANDONED
-
-Merchant (browser)
-   │
-   ├── POST /api/login ───► lib/auth.js issues JWT
-   │
-   └── GET /api/dashboard, /api/audit (JWT-gated) ───► full audit trail table
+backend/
+  server.js              Express app entry point
+  routes/api.js          Chat, checkout, auth, and audit endpoints
+  agent/agentEngine.js   Decision logic for upsells, discounts, payments
+  data/store.js          In-memory catalog, orders, audit log
+public/
+  index.html, app.js         Storefront and chat UI
+  dashboard.html, dashboard.js   Merchant dashboard (JWT-protected)
 ```
-
-## Tech stack
-
-- **Next.js 14** (pages router) + React — frontend chat/checkout UI and merchant dashboard
-- **Razorpay Node SDK** — test-mode order creation + Checkout.js widget
-- **JWT (jsonwebtoken)** — merchant dashboard auth, same pattern as role-gated access used in prior projects
-- **JSON file audit store** (`data/audit-log.json`) — swappable for Postgres/Mongo without changing calling code
-
-## Running locally
-
-```bash
+ 
+Payments are simulated to mirror how Razorpay's test-mode API would behave, including a deliberate failure rate so the checkout flow has to handle a declined payment and retry, not just the happy path.
+ 
+## Running it locally
+ 
+```
+git clone https://github.com/ananya-kn/CartPilot.git
+cd CartPilot
 npm install
-cp .env.example .env.local   # add your Razorpay TEST key id/secret
-npm run dev
+npm start
 ```
-
-Open `http://localhost:3000` for the storefront demo, and
-`http://localhost:3000/dashboard` for the merchant audit trail
-(demo login: `merchant` / `demo1234`).
-
-To simulate a payment: use Razorpay's documented test cards — `4111 1111
-1111 1111` (any future expiry/CVV) succeeds; their documented failure test
-card triggers the graceful-retry flow described above.
-
-## What's deliberately out of scope for this demo
-
-- Real merchant catalog ingestion (uses a small hardcoded catalog in `lib/agent.js` to keep the demo self-contained)
-- Production-grade auth (real merchant OAuth instead of the demo login)
-- A real ML-based upsell model — the current rule-based "frequently bought together" logic is intentionally simple so the *bounded/explainable/gated* architecture stays the focus, per the track's stated bar.
-
-## Track alignment
-
-Built for **Track 1: AI Growth & Agentic Commerce** — an agent that grows a
-merchant's revenue on Razorpay test-mode APIs, with every money action
-explainable, bounded, and gated, and one failure (payment decline) handled
-gracefully via a capped retry flow.
+ 
+Storefront runs on localhost:3000, dashboard on localhost:3000/dashboard.html.
+ 
+## Stack
+ 
+Node.js, Express, JWT for the merchant login, vanilla JS on the frontend — no framework overhead for what's essentially a chat widget and a dashboard.
 
