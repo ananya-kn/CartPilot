@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Brew & Bean Roasters — CartPilot Demo</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<div class="brandbar">
+  <div class="brand">Brew &amp; Bean <span>Roasters</span></div>
+  <div class="tag">Powered by CartPilot · Razorpay test-mode</div>
+</div>
+
+<div class="layout">
+  <div class="shop">
+    <h1>Small-batch coffee, roasted weekly.</h1>
+    <p class="sub">Add items to your cart — CartPilot's checkout agent will help with pairings, questions, and discounts as you go.</p>
+
+    <div class="grid" id="catalog"></div>
+
+    <div class="cart-box">
+      <h4>Your Cart</h4>
+      <div id="cart-lines"><p style="opacity:0.5; font-size:13px;">Cart is empty.</p></div>
+      <div class="discount-row" id="discount-row" style="display:none;"></div>
+      <div class="cart-total-row"><span>Total</span><span id="cart-total">₹0</span></div>
+      <button class="checkout-btn" id="checkout-btn" disabled>Checkout</button>
+      <div id="payment-status"></div>
+    </div>
+  </div>
+
+  <div class="agent-panel">
+    <div class="agent-head">
+      <div class="dot"></div>
+      <h2>CartPilot Concierge</h2>
+    </div>
+    <p class="desc">Every suggestion and money action below is logged to the merchant's audit trail in real time — nothing happens silently.</p>
+
+    <div class="chat-thread" id="chat-thread"></div>
+
+    <div class="chat-input">
+      <input id="chat-text" type="text" placeholder="Ask about pairings, or say 'any discount?'" />
+      <button id="chat-send">Send</button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
